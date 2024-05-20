@@ -1,5 +1,5 @@
 def call() 
 {   
-    bat 'mvn clean install'
+    bat 'go verion'
 }
 
