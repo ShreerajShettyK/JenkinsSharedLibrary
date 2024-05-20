@@ -1,5 +1,5 @@
 def call() 
 {   
-    bat 'go verion'
+    bat 'go version'
 }
 
