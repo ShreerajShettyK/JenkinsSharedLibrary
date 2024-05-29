@@ -1,3 +1,3 @@
 def call() {
-    bat "del /Q \"${env.WORKSPACE}\\*.*\""
+    bat "if exist \"${env.WORKSPACE}\" rmdir /s /q \"${env.WORKSPACE}\""
 }
