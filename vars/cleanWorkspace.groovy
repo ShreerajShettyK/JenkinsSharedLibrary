@@ -1,3 +1,11 @@
+// vars/cleanWorkspace.groovy
 def call() {
-    bat "if exist \"${env.WORKSPACE}\" rmdir /s /q \"${env.WORKSPACE}\""
+    echo 'Cleaning workspace...'
+    if (isUnix()) {
+        sh 'rm -rf *'
+    } else {
+        bat 'del /s /q *.*'
+        bat 'for /d %i in (*) do rmdir /s /q %i'
+    }
+    echo 'Workspace cleaned.'
 }
