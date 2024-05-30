@@ -3,10 +3,10 @@ def call(Map config) {
         agent any
 
         environment {
-            AWS_ECR_REPOSITORY = config.ecrRepo
-            AWS_REGION = config.awsRegion
-            DOCKER_IMAGE = config.dockerImage
-            IMAGE_TAG = config.imageTag
+            AWS_ECR_REPOSITORY = "${config.ecrRepo}"
+            AWS_REGION = "${config.awsRegion}"
+            DOCKER_IMAGE = "${config.dockerImage}"
+            IMAGE_TAG = "${config.imageTag}"
         }
 
         stages {
