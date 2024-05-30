@@ -12,9 +12,11 @@ def call(Map config) {
         stages {
             stage('Login to ECR') {
                 steps {
-                    script {
-                        def ecrLogin = sh(script: "aws ecr get-login-password --region ${env.AWS_REGION} | docker login --username AWS --password-stdin ${env.AWS_ECR_REPOSITORY}", returnStdout: true).trim()
-                        echo ecrLogin
+                    withAWS(credentials: 'aws-ecr-credentials', region: env.AWS_REGION) {
+                        script {
+                            def ecrLogin = sh(script: "aws ecr get-login-password --region ${env.AWS_REGION} | docker login --username AWS --password-stdin ${env.AWS_ECR_REPOSITORY}", returnStdout: true).trim()
+                            echo ecrLogin
+                        }
                     }
                 }
             }
