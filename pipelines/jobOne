@@ -1,0 +1,8 @@
+@Library('jenkins-shared-library') _
+
+ecrPush(
+    ecrRepo: '975050154225.dkr.ecr.us-east-1.amazonaws.com/my-app-repo',
+    awsRegion: 'us-east-1',
+    dockerImage: 'my-app',
+    imageTag: 'latest'
+)
