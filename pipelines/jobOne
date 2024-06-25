@@ -1,8 +1,166 @@
-@Library('jenkins-shared-library') _
+// image push to ecr pipeline
+@Library('sharedLibrary') _
+pipeline {
+    agent any
+    triggers {
+        githubPush() // This webhook trigger will monitor for pushes to the new repository
+    }
+    environment {
+        AWS_REGION = 'us-east-1'
+        ECR_REPOSITORY_URI = '975050154225.dkr.ecr.us-east-1.amazonaws.com/test-repo'
+    }
+    stages {
+        stage('Clean Workspace') {
+            steps {
+                deleteDir()
+            }
+        }
+        stage('Code Checkout') {
+            steps {
+                script {
+                    checkout scmGit(branches: [[name: '*/main']], extensions: [], userRemoteConfigs: [[credentialsId: 'lepsgithubtoken', url: 'https://github.com/lep13/test-repo.git']])
+                }
+            }
+        }
+        stage('Build Docker Image') {
+            steps {
+                script {
+                    // Ensure git is available and the repository is checked out correctly
+                    sh 'git status'
+                    env.commitId = sh(script: "git rev-parse --short HEAD", returnStdout: true).trim()
+                    echo "Commit id is: ${env.commitId}"
+                    sh """
+                        docker build -t test-repo:${env.commitId} .
+                        docker tag test-repo:${env.commitId} ${ECR_REPOSITORY_URI}:${env.commitId}
+                    """
+                }
+            }
+        }
+        stage('Push Docker Image to ECR') {
+            steps {
+                script {
+                    withCredentials([string(credentialsId: 'accessKey', variable: 'AWS_ACCESS_KEY_ID'), string(credentialsId: 'secretKey', variable: 'AWS_SECRET_ACCESS_KEY')]) {
+                        sh """
+                            aws ecr get-login-password --region ${AWS_REGION} | docker login --username AWS --password-stdin ${ECR_REPOSITORY_URI}
+                            docker push ${ECR_REPOSITORY_URI}:${env.commitId}
+                        """
+                    }
+                }
+            }
+        }
+    }
+    post {
+        always {
+            echo 'Cleaning workspace...'
+            deleteDir()
+        }
+    }
+}
 
-ecrPush(
-    ecrRepo: '975050154225.dkr.ecr.us-east-1.amazonaws.com/my-app-repo',
-    awsRegion: 'us-east-1',
-    dockerImage: 'my-app',
-    imageTag: 'latest'
-)
+
+//pipeline for autoBuild service
+
+
+
+@Library('sharedLibrary') _
+pipeline {
+    agent any
+    environment {
+        AWS_REGION = 'us-east-1'
+        TEMPLATE_URL = 'https://api.github.com/repos/lep13/ServiceTemplate/generate'
+        GIT_AUTHOR_NAME = 'ShreerajShettyK'
+        GIT_AUTHOR_EMAIL = 'rajshetty727@gmail.com'
+    }
+    stages {
+        stage('Clean Workspace') {
+            steps {
+                deleteDir()
+            }
+        }
+        stage('Code Checkout') {
+            steps {
+                script {
+                    def workingDir = checkoutCode("https://github.com/ShreerajShettyK/AutoBuildGo.git", "main")
+                    echo "Working directory: ${workingDir}"
+                }
+            }
+        }
+        stage('Build Docker Image') {
+            steps {
+                sh 'docker build -t autobuildgo .'
+            }
+        }
+        stage('Run Docker Container') {
+            steps {
+                script {
+                    withCredentials([string(credentialsId: 'accessKey', variable: 'AWS_ACCESS_KEY_ID'), string(credentialsId: 'secretKey', variable: 'AWS_SECRET_ACCESS_KEY')]) {
+                        sh """
+                            docker run -d -p 8082:8082 --name autobuildgo-container \
+                            -e AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID} \
+                            -e AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY} \
+                            -e AWS_REGION=${AWS_REGION} \
+                            -e TEMPLATE_URL=${TEMPLATE_URL} \
+                            -e GIT_AUTHOR_NAME=${GIT_AUTHOR_NAME} \
+                            -e GIT_AUTHOR_EMAIL=${GIT_AUTHOR_EMAIL} \
+                            autobuildgo
+                        """
+                    }
+                }
+            }
+        }
+    }
+    post {
+        always {
+            echo 'Cleaning workspace...'
+            deleteDir()
+        }
+    }
+}
+
+//pipeline for ec2 jenkins instance creation
+
+@Library('sharedLibrary') _
+pipeline {
+    agent any
+    stages {
+        stage('Clean Workspace') {
+            steps {
+                deleteDir()
+            }
+        }
+        stage('Code Checkout') {
+            steps {
+                script {
+                    def workingDir = checkoutCode("https://github.com/ShreerajShettyK/goAwsSdkProj.git", "main")
+                    echo "Working directory: ${workingDir}"
+                }
+            }
+        }
+        stage('Build Docker Image') {
+            steps {
+                sh 'docker build -t jenkins-ec2-server .'
+            }
+        }
+        stage('Run Docker Container') {
+            steps {
+                script {
+                    withCredentials([string(credentialsId: 'accessKey', variable: 'AWS_ACCESS_KEY_ID'), string(credentialsId: 'secretKey', variable: 'AWS_SECRET_ACCESS_KEY')]) {
+                        sh """
+                            docker run -d -p 8000:8000 \
+                            -e AWS_ACCESS_KEY_ID=\${AWS_ACCESS_KEY_ID} \
+                            -e AWS_SECRET_ACCESS_KEY=\${AWS_SECRET_ACCESS_KEY} \
+                            -e AWS_REGION=us-east-1 \
+                            jenkins-ec2-server
+                        """
+                    }
+                }
+            }
+        }
+    }
+    post {
+        always {
+            echo 'Cleaning workspace...'
+            deleteDir()
+        }
+    }
+}
